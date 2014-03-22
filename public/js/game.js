@@ -1,49 +1,51 @@
-// Create the canvas
-var userID = document.getElementById("script-data").getAttribute("data-id");
-var heroSpeed = 256;
-var canvas = document.getElementById("game");
-var ctx = canvas.getContext("2d");
-canvas.width = 512;
-canvas.height = 480;
+var gameManager = function(){
+    var canvas, userID, heroSpeed, ctx, images, playerManager;
 
-// Background image
-var bgReady = false;
-var bgImage = new Image();
-bgImage.onload = function () {
-    bgReady = true;
-};
-bgImage.src = "images/background.png";
+    function initImage (url) {
+        var img = new Image();
+        img.isReady = false;
+        img.onload = function(){
+            img.isReady = true;
+        }
+        img.src = url;
+        return img;
+    }
 
-// Hero image
-var heroReady = false;
-var heroImage = new Image();
-heroImage.onload = function () {
-    heroReady = true;
-};
-heroImage.src = "images/hero.png";
+    this.init = function(){
+        userID = document.getElementById("script-data").getAttribute("data-id");
+        heroSpeed = 256;
+        //    create Canvas
+        canvas = document.getElementById("game");
+        ctx = canvas.getContext("2d");
+        canvas.width = 512;
+        canvas.height = 480;
+        //    load bg image
+        images.bg = initImage("https://farm8.staticflickr.com/7333/13311761513_351c5e7633_o.png");
+        images.hero = initImage("https://farm8.staticflickr.com/7142/13311980524_135fd568cd_o.png");
+        playerManager  = {
+            ids: [userID]
+        };
+        playerManager[userID] = {
+            x : canvas.width / 2,
+            y:  canvas.height / 2
+        };
+    }
 
-// Monster image
-var monsterReady = false;
-var monsterImage = new Image();
-monsterImage.onload = function () {
-    monsterReady = true;
-};
-monsterImage.src = "images/monster.png";
 
-var heroes  = {
-    ids: [userID]
-};
-heroes[userID] = {
-    x : canvas.width / 2,
-    y:  canvas.height / 2
-};
-// Game objects
-var hero = {
-    speed: 256 // movement in pixels per second
-};
 
-var monster = {};
-var monstersCaught = 0;
+}
+
+
+
+
+//
+//// Background image
+//var bgReady = false;
+//var bgImage = new Image();
+//bgImage.onload = function () {
+//    bgReady = true;
+//};
+//bgImage.src = "https://farm8.staticflickr.com/7333/13311761513_351c5e7633_o.png";
 
 var emitData = {
     newData: false
