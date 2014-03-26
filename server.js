@@ -18,7 +18,6 @@ app.configure(function(){
 });
 
 
-//get static files
 // get the main html page at /
 app.get('/', function(req, res) {
     res.render('index', {userID: req.sessionID});

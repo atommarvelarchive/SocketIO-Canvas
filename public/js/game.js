@@ -1,5 +1,8 @@
 var gameManager = function(){
-    var canvas, userID, heroSpeed, ctx, images, playerManager;
+    //TODO: remove player
+    //TODO: connection status
+
+    var canvas, userID, heroSpeed, ctx, images, playerManager, newData, keysDown, then, socket, stats;
 
     function initImage (url) {
         var img = new Image();
@@ -11,17 +14,59 @@ var gameManager = function(){
         return img;
     }
 
+    function fontStyle () {
+        ctx.fillStyle = "rgb(250, 250, 250)";
+        ctx.font = "18px Helvetica";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+    }
+
+    function bgStyle() {
+        ctx.fillStyle = "#69AB20";
+    }
+
+    function initSocketIO () {
+        console.log("io init");
+        // gets a socket object to work with
+        socket = io.connect(document.location.href);
+        // when the client connects to the server:
+        socket.on('connect', function() {
+            // Registers a callback for chat event
+            var data = {userID : userID};
+            socket.emit('playerConnect', data);
+        });
+
+        socket.on('currentPlayers', function(data){
+            // TODO: delete old players
+            for(var i = 0; i<data.length; i++){
+                if(playerManager.ids.indexOf(data[i]) == -1){
+                    playerManager[data[i]] = {};
+                    playerManager.ids.push(data[i]);
+                }
+            }
+        });
+
+        socket.on('update', function(data) {
+//            console.log(data);
+            playerManager[data.id] = data.data;
+        });
+    }
+
     this.init = function(){
+        initSocketIO();
+        //    game constants
         userID = document.getElementById("script-data").getAttribute("data-id");
         heroSpeed = 256;
         //    create Canvas
         canvas = document.getElementById("game");
         ctx = canvas.getContext("2d");
-        canvas.width = 512;
-        canvas.height = 480;
-        //    load bg image
-        images.bg = initImage("https://farm8.staticflickr.com/7333/13311761513_351c5e7633_o.png");
-        images.hero = initImage("https://farm8.staticflickr.com/7142/13311980524_135fd568cd_o.png");
+        canvas.width = window.innerWidth - 30;
+        canvas.height = window.innerHeight - 60;
+        //    load bg and hero images
+        images = {};
+        images.bg = initImage("/images/background.png"); //initImage("https://farm8.staticflickr.com/7333/13311761513_351c5e7633_o.png");
+        images.hero = initImage("/images/hero.png"); //initImage("https://farm8.staticflickr.com/7142/13311980524_135fd568cd_o.png");
+        //    add your own player to the player manager
         playerManager  = {
             ids: [userID]
         };
@@ -29,144 +74,85 @@ var gameManager = function(){
             x : canvas.width / 2,
             y:  canvas.height / 2
         };
-    }
-
-
-
-}
-
-
-
-
-//
-//// Background image
-//var bgReady = false;
-//var bgImage = new Image();
-//bgImage.onload = function () {
-//    bgReady = true;
-//};
-//bgImage.src = "https://farm8.staticflickr.com/7333/13311761513_351c5e7633_o.png";
-
-var emitData = {
-    newData: false
-};
-
-// Handle keyboard controls
-var keysDown = {};
-
-addEventListener("keydown", function (e) {
+        // Handle keyboard controls
+        keysDown = {};
+        addEventListener("keydown", function (e) {
 //    console.log(e.keyCode);
-    keysDown[e.keyCode] = true;
-}, false);
+            keysDown[e.keyCode] = true;
+        }, false);
+        addEventListener("keyup", function (e) {
+            delete keysDown[e.keyCode];
+        }, false);
 
-addEventListener("keyup", function (e) {
-    delete keysDown[e.keyCode];
-}, false);
-
-// Reset the game when the player catches a monster
-var reset = function () {
-
-};
-
-// Update game objects
-var update = function (modifier) {
-    if (38 in keysDown) { // Player holding up
-        heroes[userID].y -= heroSpeed * modifier;
-        emitData.newData = true;
+        //  username init function
+        document.getElementById("btnName").onclick = function(){
+            var name = document.getElementById("textName").value;
+            playerManager[userID].name = name;
+        };
+        document.getElementById("textName").value = "undefined";
+        //  Start game
+        then = Date.now();
+        setInterval(main, 1); // Execute as fast as possible
     }
 
-    if (40 in keysDown) { // Player holding down
-        heroes[userID].y += heroSpeed * modifier;
-        emitData.newData = true;
-    }
-    if (37 in keysDown) { // Player holding left
-        heroes[userID].x -= heroSpeed * modifier;
-        emitData.newData = true;
-    }
-    if (39 in keysDown) { // Player holding right
-        heroes[userID].x += heroSpeed * modifier;
-        emitData.newData = true;
-    }
-    if(emitData.newData == true){
-        socket.emit('playerMove', {data: heroes[userID], id: userID});
-        emitData.newData = false;
-    }
-};
+    // Update game objects
+    function update (modifier) {
+        if (38 in keysDown) { // Player holding up
+            playerManager[userID].y -= heroSpeed * modifier;
+            newData = true;
+        }
 
-// Draw everything
-var render = function () {
-    if (bgReady) {
-        ctx.drawImage(bgImage, 0, 0);
-    }
+        if (40 in keysDown) { // Player holding down
+            playerManager[userID].y += heroSpeed * modifier;
+            newData = true;
+        }
+        if (37 in keysDown) { // Player holding left
+            playerManager[userID].x -= heroSpeed * modifier;
+            newData = true;
+        }
+        if (39 in keysDown) { // Player holding right
+            playerManager[userID].x += heroSpeed * modifier;
+            newData = true;
+        }
+        if(192 in keysDown) {
+            stats = true;
+        }
 
-    if (heroReady) {
-        for(var i = 0; i<heroes.ids.length; i++){
-            var currentHero = heroes[heroes.ids[i]];
-            ctx.fillText(currentHero.name,currentHero.x+16 , currentHero.y-30);
-            ctx.drawImage(heroImage, currentHero.x, currentHero.y);
+        if(newData == true){
+            socket.emit('playerMove', {data: playerManager[userID], id: userID});
+            newData = false;
         }
     }
 
-    if (monsterReady) {
-        ctx.drawImage(monsterImage, monster.x, monster.y);
-    }
-
-    // Score
-    ctx.fillStyle = "rgb(250, 250, 250)";
-    ctx.font = "18px Helvetica";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-//    ctx.fillText("Goblins caught: " + monstersCaught, 32, 32);
-};
-
-// The main game loop
-var main = function () {
-    var now = Date.now();
-    var delta = now - then;
-
-    update(delta / 1000);
-    render();
-
-    then = now;
-};
-
-
-
-
-var then = Date.now();
-setInterval(main, 1); // Execute as fast as possible
-
-
-
-// gets a socket object to work with
-var socket = io.connect(document.location.href);
-// when the client connects to the server:
-socket.on('connect', function() {
-    // Registers a callback for chat event
-    var data = {userID : userID};
-    socket.emit('playerConnect', data);
-});
-
-socket.on('currentPlayers', function(data){
-    // TODO: delete old players
-    for(var i = 0; i<data.length; i++){
-        if(heroes.ids.indexOf(data[i]) == -1){
-            heroes[data[i]] = {};
-            heroes.ids.push(data[i]);
+    // Draw everything
+    function render () {
+        if (images.bg.isReady) {
+            bgStyle();
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
-    }
-});
+        if (images.hero.isReady) {
+            for(var i = 0; i<playerManager.ids.length; i++){
+                var currentHero = playerManager[playerManager.ids[i]];
+                fontStyle();
+                ctx.fillText(currentHero.name,currentHero.x+16 , currentHero.y-30);
+                ctx.drawImage(images.hero, currentHero.x, currentHero.y);
+            }
+        if(stats == true){
+            var statsString = "";
+        }
+        }
+    };
 
-// If the client gets an update event
-// it adds the message it gets to the web page.
-socket.on('update', function(data) {
-    console.log(data);
-    heroes[data.id] = data.data;
-});
-
-document.getElementById("btnName").onclick = function(){
-    var name = document.getElementById("textName").value;
-    heroes[userID].name = name;
+    // The main game loop
+    function main () {
+        var now = Date.now();
+        var delta = now - then;
+        update(delta / 1000);
+        render();
+        then = now;
+    };
 };
 
+var gm = new gameManager();
 
+gm.init();
