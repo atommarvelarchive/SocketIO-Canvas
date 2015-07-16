@@ -1,7 +1,7 @@
 var express = require("express");
 
 var app = express(),
-    port     = process.env.PORT || 8080,
+    port     = 4040,
     server = require('http').createServer(app),
     io = require('socket.io').listen(server),
     players = [];
